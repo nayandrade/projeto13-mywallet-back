@@ -6,6 +6,7 @@ import bcrypt from 'bcrypt';
 import { v4 as uuid } from 'uuid';
 import joi from 'joi';
 import chalk from 'chalk';
+import dayjs from 'dayjs';
 
 dotenv.config();
 
@@ -42,7 +43,7 @@ app.post('/signup', async(req, res) => {
             return res.status(422).send(`Usuário já cadastrado`)
         }
         await db.collection('users').insertOne({ ...user, password: passwordHash, confirmPassword: passwordHash })
-        res.sendStatus(200)
+        res.status(201).send('Usuário criado com sucesso')
     } catch (error) {
         res.sendStatus(500)    
     }
@@ -66,16 +67,59 @@ app.post('/signin', async(req, res) => {
         if(validUser && bcrypt.compareSync(user.password, validUser[0].password)) {
             const token = uuid()
             console.log(token)
-            await db.collection('session').insertOne({ userId: validUser._id, token })
-            res.status(200).send(token)
+            await db.collection('session').insertOne({ userId: validUser[0]._id, token })
+            res.status(201).send({ token })
         } else {
-            res.status(422).send(`Usuário ou senha inválidos`)
+            res.status(401).send(`Usuário ou senha inválidos`)
         }   
     } catch (error) {
         res.sendStatus(500)
     }
 })
 
-app.listen(5000, () => {
+app.post('/transaction', async(req, res) => {
+    const transaction = req.body
+    const { authorization } = req.headers
+    const token = authorization?.replace('Bearer ', '');
+    const today = dayjs().format('DD-MM')
+
+    const transactionSchema = joi.object({
+        value: joi.number().required(),
+        description: joi.string().required(),
+    })
+    const { error } = transactionSchema.validate(transaction)
+    if (error) {
+        res.status(422).send(`dados da transação incorretos`)
+    }
+
+    try {
+        const session = await db.collection('session').findOne({token})
+        if(!session) {
+            return res.sendStatus(401)
+        }
+        await db.collection('transactions').insertOne({...transaction, userId: session.userId, date: today})
+        res.status(201).send('transação criada com sucesso')
+    } catch (error) {
+        res.sendStatus(500)
+    }
+})
+
+app.get('/transaction', async(req, res) => {
+    const { authorization } = req.headers
+    const token = authorization?.replace('Bearer ', '');
+    try {
+        const session = await db.collection('session').findOne({token})
+        if(!session) {
+            return res.sendStatus(401)
+        }
+        const transactions = await db.collection('transactions').find({userId: new ObjectId(session.userId)}).toArray()
+        res.send(transactions)
+    } catch (error) {
+        res.sendStatus(500)
+    }
+
+})
+
+app.listen(5002, () => {
     console.log(chalk.bold.yellow('Server running on port 5000'));
 })
