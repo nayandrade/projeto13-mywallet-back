@@ -23,7 +23,7 @@ app.use(cors());
 app.post('/signup', async(req, res) => {
     const user = req.body
     if (user.password !== user.confirmPassword) {
-        res.status(422).send(`Senhas não conferem`) //talvez por o return
+        return res.status(422).send(`Senhas não conferem`)
     }
     const userSchema = joi.object({
         name: joi.string().required(),
@@ -33,7 +33,7 @@ app.post('/signup', async(req, res) => {
     })
     const { error } = userSchema.validate(user)
     if (error) {
-        res.sendStatus(422) //talvez por o return
+        return res.sendStatus(422)
     }
     const passwordHash = bcrypt.hashSync(user.password, 10);
     try {
@@ -68,12 +68,12 @@ app.post('/signin', async(req, res) => {
             const token = uuid()
             console.log(token)
             await db.collection('session').insertOne({ userId: validUser[0]._id, token })
-            res.status(201).send({ token })
+            res.status(200).send({name: validUser[0].name, token: token })
         } else {
             res.status(401).send(`Usuário ou senha inválidos`)
         }   
     } catch (error) {
-        res.sendStatus(500)
+        res.status(401).send(`Não autorizado`)
     }
 })
 
@@ -89,7 +89,7 @@ app.post('/transaction', async(req, res) => {
     })
     const { error } = transactionSchema.validate(transaction)
     if (error) {
-        res.status(422).send(`dados da transação incorretos`)
+        return res.status(422).send(`dados da transação incorretos`)
     }
 
     try {
@@ -97,7 +97,7 @@ app.post('/transaction', async(req, res) => {
         if(!session) {
             return res.sendStatus(401)
         }
-        await db.collection('transactions').insertOne({...transaction, userId: session.userId, date: today})
+        await db.collection('transactions').insertOne({value: parseFloat(transaction.value), description: transaction.description, userId: session.userId, date: today})
         res.status(201).send('transação criada com sucesso')
     } catch (error) {
         res.sendStatus(500)
@@ -107,19 +107,29 @@ app.post('/transaction', async(req, res) => {
 app.get('/transaction', async(req, res) => {
     const { authorization } = req.headers
     const token = authorization?.replace('Bearer ', '');
+    let totalValue = 0
+    
     try {
         const session = await db.collection('session').findOne({token})
         if(!session) {
             return res.sendStatus(401)
         }
         const transactions = await db.collection('transactions').find({userId: new ObjectId(session.userId)}).toArray()
-        res.send(transactions)
+        transactions.map(transaction => {
+            totalValue += transaction.value
+        })
+        const response = {
+            transactions: transactions,
+            totalValue: totalValue
+        }
+        
+        res.send(response)
     } catch (error) {
         res.sendStatus(500)
     }
 
 })
 
-app.listen(5002, () => {
+app.listen(5000, () => {
     console.log(chalk.bold.yellow('Server running on port 5000'));
 })
