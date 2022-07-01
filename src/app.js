@@ -130,6 +130,6 @@ app.get('/transaction', async(req, res) => {
 
 })
 
-app.listen(5000, () => {
-    console.log(chalk.bold.yellow('Server running on port 5000'));
+app.listen(process.env.PORT, () => {
+    console.log(chalk.bold.yellow('Server running on port 5000' + process.env.PORT));
 })
