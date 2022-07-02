@@ -68,7 +68,7 @@ app.post('/signin', async(req, res) => {
             const token = uuid()
             console.log(token)
             await db.collection('session').insertOne({ userId: validUser[0]._id, token })
-            res.status(200).send({name: validUser[0].name, token: token })
+            res.status(200).send({name: validUser[0].name, token: token, userId: validUser[0]._id})
         } else {
             res.status(401).send(`Usuário ou senha inválidos`)
         }   
@@ -130,24 +130,23 @@ app.get('/transaction', async(req, res) => {
 
 })
 
-app.delete('/session', async (request, response) => {
-    const { user } = request.headers
-    const id = request.params.id;
-
+app.delete('/session/:id', async (req, res) => {
+    const { authorization } = req.headers
+    const userId = req.params.id;
+    const token = authorization?.replace('Bearer ', '');
+    
     try {
-        const messagesCollection = db.collection('messages');
-        const message = await messagesCollection.findOne({ _id: new ObjectId(id) });
+        const session = await db.collection('session').findOne({token})
+        console.log(session)
 
-        if (!message) {
-            response.status(404).send('Mensagem não encontrada');
+        if(!session) {
+            return res.status(401).send('usuário não está online')
         }
-        if (message.from !== user) {
-            response.status(401).send('Usuário não autorizado');
-        }
-        const deleteMessage = await messagesCollection.deleteOne({ _id: new ObjectId(id) });
-        response.status(200).send(deleteMessage);
+
+        const logoutUser = await db.collection('session').deleteMany({userId: new ObjectId(session.userId)});
+        res.status(200).send(`usuário desconectado ${session.token}`);
     } catch (error) {
-        response.status(500).send(error);
+        res.status(500).send();
     }
 })
 
