@@ -58,7 +58,7 @@ app.post('/signin', async(req, res) => {
     })
     const { error } = userSchema.validate(user)
     if (error) {
-        res.status(422).send()
+        return res.status(422).send()
     }
 
     try {
@@ -130,6 +130,27 @@ app.get('/transaction', async(req, res) => {
 
 })
 
+app.delete('/session', async (request, response) => {
+    const { user } = request.headers
+    const id = request.params.id;
+
+    try {
+        const messagesCollection = db.collection('messages');
+        const message = await messagesCollection.findOne({ _id: new ObjectId(id) });
+
+        if (!message) {
+            response.status(404).send('Mensagem não encontrada');
+        }
+        if (message.from !== user) {
+            response.status(401).send('Usuário não autorizado');
+        }
+        const deleteMessage = await messagesCollection.deleteOne({ _id: new ObjectId(id) });
+        response.status(200).send(deleteMessage);
+    } catch (error) {
+        response.status(500).send(error);
+    }
+})
+
 app.listen(process.env.PORT, () => {
-    console.log(chalk.bold.yellow('Server running on port 5000' + process.env.PORT));
+    console.log(chalk.bold.yellow('Server running on port ' + process.env.PORT));
 })
