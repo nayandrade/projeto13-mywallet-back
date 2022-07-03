@@ -130,20 +130,20 @@ app.get('/transaction', async(req, res) => {
 
 })
 
-app.delete('/session/:id', async (req, res) => {
+app.delete('/session', async (req, res) => {
     const { authorization } = req.headers
-    const userId = req.params.id;
     const token = authorization?.replace('Bearer ', '');
     
     try {
         const session = await db.collection('session').findOne({token})
-        console.log(session)
+        const userId = session.userId
+        console.log(session, userId)
 
         if(!session) {
             return res.status(401).send('usuário não está online')
         }
 
-        const logoutUser = await db.collection('session').deleteMany({userId: new ObjectId(session.userId)});
+        const logoutUser = await db.collection('session').deleteMany({userId});
         res.status(200).send(`usuário desconectado ${session.token}`);
     } catch (error) {
         res.status(500).send();
