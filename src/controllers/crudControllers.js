@@ -5,8 +5,7 @@ import db from '../db.js';
 
 export async function postTransaction(req, res) {
     const transaction = req.body
-    const { authorization } = req.headers
-    const token = authorization?.replace('Bearer ', '');
+    const session = res.locals.session
     const today = dayjs().format('DD-MM')
 
     const transactionSchema = joi.object({
@@ -19,10 +18,6 @@ export async function postTransaction(req, res) {
     }
 
     try {
-        const session = await db.collection('session').findOne({token})
-        if(!session) {
-            return res.sendStatus(401)
-        }
         await db.collection('transactions').insertOne({value: parseFloat(transaction.value), description: transaction.description, userId: session.userId, date: today})
         res.status(201).send('transação criada com sucesso')
     } catch (error) {
@@ -31,17 +26,10 @@ export async function postTransaction(req, res) {
 }
 
 export async function getTransaction(req, res) {
-    const { authorization } = req.headers
-    const token = authorization?.replace('Bearer ', '');
+    const session = res.locals.session
     let totalValue = 0
-    console.log(token)
     
     try {
-        const session = await db.collection('session').findOne({token})
-        console.log(session, session.userId)
-        if(!session) {
-            return res.sendStatus(401)
-        }
         //const transactions = await db.collection('transactions').find({userId: session.userId}).toArray()
         const transactions = await db.collection('transactions').find({userId: new ObjectId(session.userId)}).toArray()
         console.log(transactions)
