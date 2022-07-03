@@ -1,12 +1,15 @@
 import { ObjectId } from 'mongodb';
-import joi from 'joi';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc.js';
+import tz from 'dayjs/plugin/timezone.js';
 import db from '../db.js';
 
 export async function postTransaction(req, res) {
+    dayjs.extend(utc);
+    dayjs.extend(tz);
     const transaction = req.body
     const session = res.locals.session
-    const today = dayjs().format('DD-MM')
+    const today = dayjs().tz('America/Fortaleza').format('DD-MM')
 
     try {
         await db.collection('transactions').insertOne({value: parseFloat(transaction.value), description: transaction.description, userId: session.userId, date: today})
