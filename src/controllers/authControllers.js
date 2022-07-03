@@ -1,23 +1,10 @@
 import bcrypt from 'bcrypt';
 import { v4 as uuid } from 'uuid';
-import joi from 'joi';
 import db from '../db.js';
 
 export async function signup(req, res) {
-    const user = req.body
-    if (user.password !== user.confirmPassword) {
-        return res.status(422).send(`Senhas não conferem`)
-    }
-    const userSchema = joi.object({
-        name: joi.string().required(),
-        email: joi.string().email().required(),
-        password: joi.string().required(),
-        confirmPassword: joi.string().required()
-    })
-    const { error } = userSchema.validate(user)
-    if (error) {
-        return res.sendStatus(422)
-    }
+    const user = res.locals.user
+
     const passwordHash = bcrypt.hashSync(user.password, 10);
     try {
         const validUser = await db.collection('users').find( { email: user.email } ).toArray();
@@ -34,15 +21,6 @@ export async function signup(req, res) {
 
 export async function signin(req, res) {
     const user = req.body
-    console.log(user)
-    const userSchema = joi.object({
-        email: joi.string().email().required(),
-        password: joi.string().required()
-    })
-    const { error } = userSchema.validate(user)
-    if (error) {
-        return res.status(422).send()
-    }
 
     try {
         const validUser = await db.collection('users').find( { email: user.email } ).toArray();
